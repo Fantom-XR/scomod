@@ -7,8 +7,13 @@ from ro_py.thumbnails import ThumbnailSize, ThumbnailType
 from dotenv import load_dotenv
 import os
 import random
+import utils
+import aiohttp
 import aiofiles
 import keep_alive
+import asyncio
+from better_profanity import profanity
+
 
 load_dotenv()  # Load environment variables from .env file.
 
@@ -17,7 +22,7 @@ bot = commands.Bot(command_prefix=commands.when_mentioned_or('.'), case_insensit
 bot.remove_command("help")
 bot.warnings = {} # guild_id : {member_id: [count, [(admin_id, reason)]]}
 
-roblox = Client(os.getenv("COOKIE"))
+#roblox = Client(os.getenv("COOKIE"))
     
 
 @bot.event
@@ -46,7 +51,7 @@ async def on_ready():
     
     DiscordComponents(bot)
     print(bot.user.name + " is ready.")
-    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Avenir"))  
+    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="Scotland™ Members"))  
 
 @bot.event
 async def on_guild_join(guild):
@@ -57,6 +62,22 @@ async def on_guild_join(guild):
     #await user.remove_roles(role)
     #await ctx.send(f"hey {ctx.author.name}, {user.name} has been giving a role called: {role.name}")
 
+@bot.command()
+async def afk(ctx, mins):
+    current_nick = ctx.author.nick
+    await ctx.send(f"{ctx.author.mention} has gone afk for {mins} minutes.")
+    await ctx.author.edit(nick=f"{ctx.author.name} [AFK]")
+
+    counter = 0
+    while counter <= int(mins):
+        counter += 1
+        await asyncio.sleep(60)
+
+        if counter == int(mins):
+            await ctx.author.edit(nick=current_nick)
+            await ctx.send(f"{ctx.author.mention} is no longer AFK")
+            break
+            
 @bot.command()
 @commands.has_permissions(manage_messages = True)
 async def warn(ctx, member: discord.Member=None, *, reason=None):
@@ -101,10 +122,40 @@ async def warnings(ctx, member: discord.Member=None):
     except KeyError: # no warnings
         await ctx.send("This user has no warnings.")
 
+
 @bot.command()
 async def ping(ctx):
     """|| Tells the bot's latency """
     await ctx.send(f"{round(bot.latency * 1000)} ms")
+
+@bot.command(description="Mutes the specified user.")
+@commands.has_permissions(manage_messages=True)
+async def mute(ctx, member: discord.Member, *, reason=None):
+    guild = ctx.guild
+    mutedRole = discord.utils.get(guild.roles, name="Muted")
+
+
+    if not mutedRole:
+        mutedRole = await guild.create_role(name="Muted")
+
+        for channel in guild.channels:
+            await channel.set_permissions(mutedRole, speak=False, send_messages=False, read_message_history=True, read_messages=False)
+    embed = discord.Embed(title="muted", description=f"{member.mention} was muted ", colour=discord.Colour.light_gray())
+    embed.add_field(name="reason:", value=reason, inline=False)
+    await ctx.send(embed=embed)
+    await member.add_roles(mutedRole, reason=reason)
+    await member.send(f" you have been muted from: {guild.name} reason: {reason}")
+
+
+@bot.command(description="Unmutes a specified user.")
+@commands.has_permissions(manage_messages=True)
+async def unmute(ctx, member: discord.Member):
+   mutedRole = discord.utils.get(ctx.guild.roles, name="Muted")
+
+   await member.remove_roles(mutedRole)
+   await member.send(f" you have unmutedd from: - {ctx.guild.name}")
+   embed = discord.Embed(title="unmute", description=f" unmuted-{member.mention}",colour=discord.Colour.light_gray())
+   await ctx.send(embed=embed)
 
 @bot.command()
 async def serverinfo(ctx):
@@ -133,28 +184,37 @@ async def serverinfo(ctx):
     
 @bot.event
 async def on_member_join(member):
-    chan1 = member.guild.get_channel(790682463126945792)
+    chan1 = member.guild.get_channel(873931671521611807)
     colour = discord.Colour.from_rgb(255, 255, 255)
     title = "New Member!"
-    description = f"Welcome to Avenir,{member.mention}! We wish you a great time in our server."
+    description = f"Welcome to Newcastle,{member.mention}! We wish you a great time in our community."
     embed = discord.Embed(colour = colour, title=title, description=description)
     embed.set_thumbnail(url=f"{member.avatar_url}")
-    embed.set_image(url="https://www.fantomxr.cf/imgs/AVwelcome.png")
+    #embed.set_image(url="https://www.fantomxr.cf/imgs/AVwelcome.png")
     await chan1.send(embed=embed)
 
-@bot.event
-async def on_member_join(member):
-    title = "New Member!"
-    description = "Please read below to get started."
-    embed = discord.Embed(title=title, description=description)
-    embed.set_author(name=f"Welcome! {member.name}", icon_url=f"{member.guild.icon_url}")
-    embed.add_field(name="Rules", value="Please make sure to read over the rules and guidelines within the Avenir discord to ensure we can sustain a better and more suitable environment for our server and community. Disobey these rules and you can be subject to being banned.", inline=False)
-    embed.add_field(name="Ordering and Purchasing", value="If you wish to purchase a Avenir product please head for the #information channel or say .hub to find our Purchase Centre for you to get started", inline=False)
-    embed.set_footer(text="We hope you enjoy your time here at Avenir.", icon_url=f"{member.guild.icon_url}")
-    await member.send(embed=embed)
+    name1 = (f"Member Count : {member.guild.member_count}")
+    chan = member.guild.get_channel(873939611007737856)
+    await chan.edit(name=name1)
+
+
+@bot.command(pass_context=True)
+async def update_member_count(ctx):
+    while True:
+        await ctx.send(ctx.guild.member_count)
+        channel = discord.utils.get(ctx.guild.channels, id=911591413383319562)
+        await channel.edit(name=f'Member Count: {ctx.guild.member_count}')
+        await asyncio.sleep(120)
+
 
 @bot.command()
-async def userinfo(ctx, *, user: discord.Member = None):
+async def updatem(ctx):
+    bot.loop.create_task(update_member_count(ctx))  # Create loop/task
+    await ctx.send("Loop started, changed member count.") # Optional
+
+
+@bot.command()
+async def whois(ctx, *, user: discord.Member = None):
 	if user is None:
 		user = ctx.author
 	date_format = "%a, %d %b %Y %I:%M %p"
@@ -181,57 +241,41 @@ async def userinfo(ctx, *, user: discord.Member = None):
 
 """@bot.command()
 @commands.guild_only()
-async def suggest(ctx, *, message=None):
-    if not message:
-        await ctx.send("Please Introduce a suggestion :/.")
-        return
+@commands.has_role('Staff')
+async def ssu(ctx):
  
-    channel = bot.get_channel(788520182549053472)
-    message = message
+    channel = bot.get_channel(884496869894524999)
+    title = "Server Start Up"
+    descrip = "Hi, there is a Server Start up now come along and have some fun! \n\n https://www.roblox.com/games/6794843414/Newcastle-England"
  
-    embed = discord.Embed(timestamp=ctx.message.created_at)
+    embed = discord.Embed(title=title, description =descrip,timestamp=ctx.message.created_at)
 
-    embed.set_author(name='New Suggestion!')
-
-    embed.add_field(name='Suggestion By:', value=ctx.author.mention)
-    embed.add_field(name='Suggestion:', value=message)
+    embed.add_field(name='SSU Host:', value=ctx.author.mention)
    
     
     
 
     await ctx.message.delete()
-    await ctx.send(f"{ctx.author.mention} your suggestion has been sent! Other users can now see your suggestion, if you would like your suggestion removed please contact a High Rank.")
-    msg = await channel.send(embed =embed)
-    await msg.add_reaction("✅")
-    await msg.add_reaction("❎")"""
+    await ctx.author.send(f"{ctx.author.mention} your SSU has succesfully been posted.")
+    await channel.send("@here")
+    await channel.send(embed =embed)"""
  
-
-@bot.command()
-async def hub(ctx):
-    """|| gives you link to the Hub!"""
-    await ctx.send("https://www.roblox.com/games/6153453289/AV-Hub")
 
 #link to group
 
 @bot.command()
 async def group(ctx):
     """|| Gives you link the the group!"""
-    await ctx.send("https://www.roblox.com/groups/8644129/AV-Avenir#!/about")
-
-@tasks.loop(seconds = 60)
-async def on_member_join(member):
-    name1 = (f"Member Count : {member.guild.member_count}")
-    chan = member.guild.get_channel(788475887380856913)
-    await chan.edit(name=name1)
+    await ctx.send("https://www.roblox.com/groups/4170430")
 
 @bot.command()
 async def mb(ctx):
     await ctx.send(f"There are {ctx.guild.member_count} members in the server!")
 
 bot.load_extension("COgs.help")
-bot.load_extension("COgs.sell")
 bot.load_extension("COgs.moderaion")
-bot.load_extension("COgs.apply")
-bot.load_extension("COgs.feedback")
 bot.load_extension("COgs.logstaff")
-bot.run(os.getenv("DISCORDTOKEN"))
+bot.load_extension("COgs.auto")
+bot.load_extension("COgs.fun")
+#bot.load_extension("COgs.ai_moderation")
+bot.run(os.getenv("TOKEN"))

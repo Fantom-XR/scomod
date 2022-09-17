@@ -1,0 +1,2 @@
+language = "python3"
+run = "pip install discord && pip install --upgrade discord-components && pip install better_profanity && pip install utils && pip install aiofiles && pip install aiohttp && pip install perspective && pip install python-dotenv && pip install pipenv && pip install ro-py && pipenv install && python main.py"
